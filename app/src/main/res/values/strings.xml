@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WinSipPhone Tester</string>
+    <color name="bg">#11171D</color>
+    <color name="bar">#1B232C</color>
+    <color name="text1">#FFFFFF</color>
+    <color name="text2">#B0BEC5</color>
+</resources>
