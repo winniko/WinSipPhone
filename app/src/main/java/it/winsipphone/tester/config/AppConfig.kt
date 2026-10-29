@@ -11,6 +11,8 @@ data class AppConfig(
     val advanced: AdvancedConfig = AdvancedConfig(),
     /** Interni da sorvegliare nella scheda "Interni" (stato libero/occupato, BLF). */
     val blf: List<BlfEntry> = emptyList(),
+    /** Versione del formato configurazione (per le conversioni automatiche). */
+    val configVersion: Int = 0,
 )
 
 /** Account del centralino (FreePBX / Asterisk o qualsiasi PBX SIP). */
@@ -41,6 +43,14 @@ data class DirectConfig(
     val acceptIncoming: Boolean = true,
     /** IP autorizzati a chiamare direttamente (vuoto = tutti), separati da virgola. */
     val allowedIps: String = "",
+    /**
+     * Dominio del mittente nelle chiamate dirette (es. IP del FreePBX). I citofoni Hikvision accettano
+     * solo chiamate che sembrano arrivare dal loro server SIP: con un altro mittente rispondono 400 Bad Request.
+     * Vuoto = dominio dell'account (se attivo), altrimenti l'IP del telefono.
+     */
+    val fromDomain: String = "",
+    /** Numero del mittente nelle chiamate dirette (vuoto = interno dell'account, altrimenti "winsipphone"). */
+    val fromUser: String = "",
 )
 
 @Serializable
@@ -67,8 +77,11 @@ data class VideoConfig(
 
 @Serializable
 data class AdvancedConfig(
-    /** Porta SIP locale. 5060 = standard (serve per ricevere chiamate dirette IP); 0 = casuale. */
-    val localPort: Int = 5060,
+    /**
+     * Porta SIP di questo telefono (0 = casuale). NON 5060: molti smartphone (es. OnePlus) la riservano
+     * alle chiamate dell'operatore (VoLTE/VoWiFi) e scartano le risposte SIP in arrivo.
+     */
+    val localPort: Int = 5062,
     val keepAlive: Boolean = true,
     val stunServer: String = "",
     val ice: Boolean = false,

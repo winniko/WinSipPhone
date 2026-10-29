@@ -475,6 +475,10 @@ object SipManager {
             p.account = null
             c.defaultAccount = null
         }
+        if (direct) directFromHeader()?.let {
+            p.fromHeader = it
+            L.i(TAG, "Mittente della chiamata diretta: $it")
+        }
         val call = try {
             c.inviteAddressWithParams(addr, p)
         } finally {
@@ -498,8 +502,28 @@ object SipManager {
         Bus.remoteVideo.value = false
         Bus.muted.value = false
         Bus.call.value = CallUi.Outgoing(remote, name, withVideo, "chiamata in corso...")
-        L.i(TAG, "Chiamata in uscita verso ${addr.asStringUriOnly()} (${if (withVideo) "video" else "audio"})")
+        L.i(TAG, "Chiamata in uscita verso ${addr.asStringUriOnly()} (${if (withVideo) "video" else "audio"})" +
+            (if (direct) " diretta" else " tramite centralino") + " — IP del telefono: ${it.winsipphone.tester.diag.NetTest.localIps().joinToString()}")
+        // Nessuna risposta in 6 s: lo dico subito invece di restare su "chiamata in corso..."
+        main.postDelayed({
+            if (current === call && !answered && !SipTrace.hasReply(call.callLog.callId.orEmpty()) && ConfigRepository.current.advanced.sipTrace) {
+                setOutgoingStatus(call, "il dispositivo non risponde (SIP disattivato, IP o porta errati?)")
+                L.w(TAG, "Nessuna risposta SIP dopo 6 secondi da ${addr.asStringUriOnly()}")
+            }
+        }, 6000)
         return null
+    }
+
+    /** Mittente delle chiamate dirette (es. sip:200@192.168.1.10 per i citofoni Hikvision), null = predefinito. */
+    private fun directFromHeader(): String? {
+        val cfg = ConfigRepository.current
+        val acc = cfg.account
+        val accOn = acc.enabled && acc.server.isNotBlank() && acc.username.isNotBlank()
+        val domain = cfg.direct.fromDomain.trim().ifBlank { if (accOn) acc.domain.ifBlank { acc.server } else "" }
+        if (domain.isBlank()) return null
+        val user = cfg.direct.fromUser.trim().ifBlank { if (accOn) acc.username else "winsipphone" }
+        val name = acc.displayName.takeIf { accOn && it.isNotBlank() }?.let { "\"$it\" " }.orEmpty()
+        return "$name<sip:$user@$domain>"
     }
 
     /** Interno (201), IP (192.168.1.50[:5060]), interno@host o sip:... -> indirizzo SIP. */
@@ -713,7 +737,8 @@ object SipManager {
         call.removeListener(callListener)
         val err = call.errorInfo
         val code = if (err != null && err.protocolCode > 0) "${err.protocolCode} ${err.phrase.orEmpty()}".trim() else ""
-        val reasonText = describeEnd(call.reason, code, answered)
+        val noReply = outgoing && ConfigRepository.current.advanced.sipTrace && !SipTrace.hasReply(call.callLog.callId.orEmpty())
+        val reasonText = describeEnd(call.reason, code, answered, noReply)
         val duration = if (answered) ((System.currentTimeMillis() - answeredAt) / 1000).toInt() else 0
         CallLog.add(CallEntry(startedAt, remote, name, incoming = !outgoing, answered = answered,
             durationSec = duration, video = hadVideo, reason = if (answered) "" else reasonText))
@@ -738,7 +763,7 @@ object SipManager {
         }
     }
 
-    private fun describeEnd(reason: Reason?, code: String, wasAnswered: Boolean): String {
+    private fun describeEnd(reason: Reason?, code: String, wasAnswered: Boolean, noReply: Boolean): String {
         if (wasAnswered) return "chiamata terminata"
         val text = when (reason) {
             Reason.Declined -> "rifiutata"
@@ -749,7 +774,12 @@ object SipManager {
             Reason.IOError, Reason.ServerTimeout, Reason.NoResponse -> "non raggiungibile"
             Reason.TemporarilyUnavailable -> "non disponibile"
             Reason.NotAcceptable, Reason.UnsupportedContent -> "codec/media non compatibili"
-            Reason.None, null -> if (outgoing) "annullata" else "persa"
+            Reason.None, null -> when {
+                !outgoing -> "persa"
+                noReply -> "nessuna risposta dal dispositivo"
+                else -> "annullata"
+            }
+            Reason.Unknown -> if (code.startsWith("400")) "rifiutata dal dispositivo — se è un citofono Hikvision imposta \"Dominio del mittente\" (Impostazioni → Chiamate dirette IP)" else "rifiutata dal dispositivo"
             else -> reason.name.lowercase()
         }
         return if (code.isNotEmpty()) "$text ($code)" else text

@@ -39,7 +39,7 @@ Tocca l'ingranaggio in alto a destra, poi **Account centralino (FreePBX)**, e co
 | Interno | 201 |
 | Password (secret) | quella del FreePBX |
 | Indirizzo del centralino | 192.168.1.10 |
-| Porta | 5060 (alcuni FreePBX usano 5160 per chan_sip) |
+| Porta del centralino | 5060 (alcuni FreePBX usano 5160 per chan_sip) |
 | Protocollo | UDP in casa; TCP fuori casa o con VPN |
 
 Premi **Prova connessione al centralino** per verificare che risponda, poi **Salva**. In alto, il pallino diventa **verde** con la scritta "registrato".
@@ -146,15 +146,29 @@ Serve l'account del centralino. Sul FreePBX gli "hint" degli interni sono attivi
 
 ## 7. Farsi chiamare direttamente (senza centralino)
 
-Un citofono o un altro telefono può chiamare questo smartphone all'indirizzo `IP-del-telefono:5060`. L'IP si legge in **Strumenti → Stato**.
+Un citofono o un altro telefono può chiamare questo smartphone all'indirizzo `IP-del-telefono:5062`. L'IP si legge in **Strumenti → Stato**.
 
 - In **Impostazioni → Chiamate dirette IP** puoi limitare gli IP autorizzati (es. solo il citofono `192.168.1.50`).
 - Conviene dare al telefono un **IP fisso** (prenotazione DHCP nel router), così l'indirizzo non cambia.
 - La **porta del telefono** si cambia in Impostazioni (0 = casuale; in quel caso le chiamate dirette in arrivo non sono possibili).
+- **Non usare la porta 5060 per il telefono.** Molti smartphone (ad esempio OnePlus) la riservano alle chiamate dell'operatore (VoLTE / chiamate Wi-Fi) e scartano le risposte SIP. Sintomi:
+  - il dispositivo chiamato squilla, ma l'app resta su "chiamata in corso" o "il dispositivo non risponde";
+  - riagganciando, l'altro telefono continua a squillare.
+
+  Dalla versione 1.0.2 la porta predefinita è **5062**.
 
 > Se centralino e dispositivo da chiamare direttamente hanno lo **stesso indirizzo IP** (cambia solo la porta), la chiamata passa dal centralino. Caso raro: in un impianto normale hanno IP diversi.
 
 ---
+
+### Citofoni Hikvision senza centralino
+I posti esterni Hikvision (es. DS-KD8003) rifiutano con **"400 Bad Request"** le chiamate dirette che non sembrano arrivare dal loro server SIP.
+
+1. Nel citofono guarda **Configurazione → VoIP → Indirizzo IP del server** (es. `192.168.1.10`).
+2. Nell'app vai in **Impostazioni → Chiamate dirette IP → Dominio del mittente** e scrivi lo stesso indirizzo. Facoltativo: un **Numero del mittente**, es. `200`.
+3. Chiama il citofono con `101@IP-del-citofono`, dove 101 è il "Numero" del citofono in VoIP.
+
+Se l'account del centralino è attivo, l'app usa automaticamente il suo indirizzo come mittente.
 
 ## 8. Impostazioni avanzate
 
@@ -180,6 +194,8 @@ Un citofono o un altro telefono può chiamare questo smartphone all'indirizzo `I
 | Chiamate in arrivo solo con app aperta | togli i limiti batteria (Strumenti → Permessi e batteria) e l'eventuale risparmio energetico del produttore |
 | Si sente solo in una direzione | NAT/firewall: usa la VPN o TCP; guarda "RTP remoto" nelle Statistiche |
 | Niente video | abilita h264/vp8 sull'interno del FreePBX; controlla il permesso fotocamera |
+| Il telefono chiamato squilla ma l'app non lo vede / continua a squillare dopo il riaggancio | porta del telefono 5060 bloccata dallo smartphone: Impostazioni → Chiamate dirette IP → Porta SIP di QUESTO telefono = 5062 |
+| Citofono Hikvision: "400 Bad Request" | imposta *Dominio del mittente* = server SIP del citofono (vedi sezione 7) |
 | Il citofono non apre | prova tipo DTMF diverso (Impostazioni → Audio) o il comando HTTP |
 
 ---

@@ -53,7 +53,7 @@ class SettingsActivity : AppCompatActivity() {
         val aUser = f.text("Interno", c.account.username, "es. 201")
         val aPass = f.text("Password (secret)", c.account.password, password = true)
         val aServer = f.text("Indirizzo del centralino", c.account.server, "es. 192.168.1.10 o pbx.miodominio.it")
-        val aPort = f.int("Porta", c.account.port, "5060 (TLS: 5061)")
+        val aPort = f.int("Porta del centralino", c.account.port, "di solito 5060 (TLS: 5061)")
         val aTr = f.choice("Protocollo", listOf("UDP" to "UDP (standard)", "TCP" to "TCP (meglio fuori casa / con VPN)", "TLS" to "TLS (cifrato)"), c.account.transport)
         val aName = f.text("Nome visualizzato (facoltativo)", c.account.displayName, "es. Mario cellulare")
         val aAuth = f.text("Utente di autenticazione (di solito vuoto)", c.account.authUsername)
@@ -66,8 +66,14 @@ class SettingsActivity : AppCompatActivity() {
         f.note("Per chiamare senza centralino scrivi nel tastierino l'indirizzo IP (192.168.1.50) o interno@IP (201@192.168.1.50).")
         val dIn = f.switch("Accetta chiamate dirette in arrivo (senza centralino)", c.direct.acceptIncoming)
         val dIps = f.text("IP autorizzati a chiamare (vuoto = tutti)", c.direct.allowedIps, "es. 192.168.1.50, 192.168.1.51")
-        val xPort = f.int("Porta SIP del telefono (5060 standard, 0 = casuale)", c.advanced.localPort)
-        f.note("Gli altri dispositivi chiamano questo telefono su ip-del-telefono:porta (vedi Strumenti).")
+        val dFromDom = f.text("Dominio del mittente (citofoni Hikvision: IP del loro server SIP)", c.direct.fromDomain, "es. 192.168.1.10 — vuoto = automatico")
+        val dFromUser = f.text("Numero del mittente (facoltativo)", c.direct.fromUser, "es. 200")
+        f.note("I citofoni Hikvision rispondono \"400 Bad Request\" alle chiamate dirette che non sembrano arrivare dal " +
+            "loro server SIP: scrivi qui l'indirizzo del server impostato nel citofono (Configurazione → VoIP → Indirizzo IP del server).")
+        val xPort = f.int("Porta SIP di QUESTO telefono (consigliata 5062, 0 = casuale)", c.advanced.localPort)
+        f.note("Non è la porta del centralino. Evita la 5060: molti smartphone la riservano alle chiamate " +
+            "dell'operatore e le risposte SIP non arrivano (il telefono chiamato continua a squillare). " +
+            "Gli altri dispositivi chiamano questo telefono su ip-del-telefono:porta (vedi Strumenti).")
 
         f.section("Audio")
         val uEc = f.switch("Cancellazione eco", c.audio.echoCancellation)
@@ -106,7 +112,7 @@ class SettingsActivity : AppCompatActivity() {
             c.copy(
                 account = AccountConfig(aOn(), aName(), aUser(), aAuth(), aPass(), aServer(), aPort().coerceIn(1, 65535), aTr(),
                     aDomain(), aProxy(), aExp().coerceIn(60, 86400)),
-                direct = DirectConfig(dIn(), dIps()),
+                direct = DirectConfig(dIn(), dIps(), dFromDom(), dFromUser()),
                 audio = AudioConfig(uEc(), uMic().coerceIn(-20f, 20f), uSpk().coerceIn(-20f, 20f), uDtmf(), uVib(), uCodec().uppercase()),
                 video = VideoConfig(vOn(), vAuto(), vFront(), vCodec().uppercase()),
                 advanced = AdvancedConfig(xPort().coerceIn(0, 65535), xKa(), xStun(), xIce(), xEnc(), xRing().coerceIn(10, 600), xAuto(), xTrace(), xDebug()),

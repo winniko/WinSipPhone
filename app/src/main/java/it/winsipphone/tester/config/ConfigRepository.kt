@@ -28,7 +28,7 @@ object ConfigRepository {
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        _config.value = prefs.getString(KEY_CONFIG, null)?.let { parseOrNull(it) } ?: AppConfig()
+        _config.value = migrate(prefs.getString(KEY_CONFIG, null)?.let { parseOrNull(it) } ?: AppConfig())
     }
 
     fun save(cfg: AppConfig) {
@@ -47,12 +47,24 @@ object ConfigRepository {
 
     /** Restituisce null se ok, altrimenti il messaggio d'errore. */
     fun importJson(text: String): String? = try {
-        val c = json.decodeFromString(AppConfig.serializer(), text)
+        val c = migrate(json.decodeFromString(AppConfig.serializer(), text))
         // Un file senza password non cancella quella già salvata
         save(if (c.account.password.isEmpty()) c.copy(account = c.account.copy(password = current.account.password)) else c)
         null
     } catch (e: Exception) {
         e.message ?: "File non valido"
+    }
+
+    /** v2: porta locale 5060 -> 5062 (la 5060 è bloccata su molti smartphone). */
+    private fun migrate(c: AppConfig): AppConfig {
+        if (c.configVersion >= 2) return c
+        val m = c.copy(
+            advanced = if (c.advanced.localPort == 5060) c.advanced.copy(localPort = 5062) else c.advanced,
+            configVersion = 2,
+        )
+        prefs.edit().putString(KEY_CONFIG, json.encodeToString(m)).apply()
+        if (m.advanced.localPort != c.advanced.localPort) L.i("Config", "Porta del telefono cambiata da 5060 a 5062")
+        return m
     }
 
     private fun parseOrNull(text: String): AppConfig? = try {

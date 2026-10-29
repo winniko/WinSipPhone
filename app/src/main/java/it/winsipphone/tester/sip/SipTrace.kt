@@ -90,6 +90,12 @@ object SipTrace {
         version.value = version.value + 1
     }
 
+    /** true se per la chiamata [callId] è arrivato almeno un messaggio dall'altra parte (100 Trying, 180, 4xx...). */
+    fun hasReply(callId: String): Boolean {
+        val idRe = Regex("(?im)^(Call-ID|i):\\s*(\\S+)")
+        return synchronized(buffer) { buffer.any { !it.outgoing && idRe.find(it.text)?.groupValues?.get(2) == callId } }
+    }
+
     /** Indirizzi RTP dall'ultimo SDP della chiamata [callId]: "audio 192.168.1.10:12000, video ..." */
     fun mediaInfo(callId: String, outgoing: Boolean): String? {
         val idRe = Regex("(?im)^(Call-ID|i):\\s*(\\S+)")

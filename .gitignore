@@ -18,3 +18,6 @@ APK_PRONTO/
 CLAUDE.md
 LISTA_COSE_DA_FARE.md
 __pycache__/
+
+# Log condivisi dal telefono (contengono indirizzi e dati della rete privata)
+log_*.txt

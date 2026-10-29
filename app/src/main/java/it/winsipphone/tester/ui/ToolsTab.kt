@@ -57,7 +57,7 @@ class ToolsTab(private val act: MainActivity) {
             SipManager.keepAliveTick()
             act.toast("Registrazione inviata")
         }
-        button("Registro dell'app (log)") { showLog() }
+        button("Registro completo (da inviare per assistenza)") { showLog() }
         button("Permessi e batteria") { act.recheckPermissions() }
         button("Informazioni e licenza") { about() }
         view = ScrollView(act).apply { addView(col) }
@@ -83,7 +83,8 @@ class ToolsTab(private val act: MainActivity) {
         return buildString {
             append("Registrazione: ${Bus.registration.value}\n")
             if (acc.enabled) append("Account: ${acc.username}@${acc.server}:${acc.port} ${acc.transport}\n")
-            append("Porta SIP locale: ${if (cfg.advanced.localPort <= 0) "casuale" else cfg.advanced.localPort}\n")
+            append("Porta SIP di questo telefono: ${if (cfg.advanced.localPort <= 0) "casuale" else cfg.advanced.localPort}" +
+                (if (cfg.advanced.localPort == 5060) "  ⚠ sconsigliata: usa 5062" else "") + "\n")
             append("IP del telefono: ${ips.joinToString().ifEmpty { "nessuna rete" }}\n")
             append("Chiamate dirette IP in arrivo: ${if (cfg.direct.acceptIncoming) "accettate" else "rifiutate"}\n")
             append("Permessi: microfono ${yn(granted(Manifest.permission.RECORD_AUDIO))}, fotocamera ${yn(granted(Manifest.permission.CAMERA))}")
@@ -103,8 +104,19 @@ class ToolsTab(private val act: MainActivity) {
         val sv = ScrollView(act).apply { addView(tv); post { fullScroll(View.FOCUS_DOWN) } }
         AlertDialog.Builder(act).setTitle("Registro dell'app").setView(sv)
             .setPositiveButton("Chiudi", null)
-            .setNeutralButton("Condividi") { _, _ -> act.shareFile("log_winsipphone.txt", L.dump(), "Log WinSipPhone") }
+            .setNeutralButton("Condividi") { _, _ -> shareDiagnostics() }
             .show()
+    }
+
+    /** Un solo file per l'assistenza: stato, impostazioni (senza password), log dell'app e registro SIP. */
+    private fun shareDiagnostics() {
+        val cfg = ConfigRepository.exportJson(withPassword = false)
+        val text = "===== WinSipPhone Tester ${BuildConfig.VERSION_NAME} — ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}, Android ${android.os.Build.VERSION.RELEASE}\n\n" +
+            "===== STATO\n" + statusText(NetTest.localIps()) + "\n\n" +
+            "===== IMPOSTAZIONI (senza password)\n" + cfg + "\n\n" +
+            "===== REGISTRO APP\n" + L.dump() + "\n\n" +
+            "===== REGISTRO SIP\n" + it.winsipphone.tester.sip.SipTrace.export().ifEmpty { "(vuoto: registro SIP disattivato o nessun messaggio)" }
+        act.shareFile("log_winsipphone.txt", text, "Log WinSipPhone")
     }
 
     private fun about() {

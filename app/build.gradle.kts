@@ -19,8 +19,8 @@ android {
         applicationId = "it.winsipphone.tester"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 4
+        versionName = "1.0.3"
         ndk {
             // -Pabi=arm64-v8a produce un APK piu' leggero per un solo tipo di processore.
             val onlyAbi = project.findProperty("abi")?.toString()
